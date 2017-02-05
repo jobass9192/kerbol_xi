@@ -2,12 +2,15 @@
 set config:IPU to 300.
 run kerbolxiprintdisplays.ks.
 run kerbolxiorbital_functions.ks.
+run speedcontrolthrottlepiddescend.ks.
 
 sas on.
+lights off.
 lock throttle to 0.
+brakes off.
 clearscreen.
 
-//corrects double type input error
+//corrects double type input error (first program sets them to false, rest to true)
 local first1 to true.
 local first2 to true.
 local first3 to true.
@@ -33,21 +36,27 @@ parameter y_seek.
 parameter r_seek.
 
 local program to 0.
+local holdNegative to true.
 local node1 to node((time:seconds), 0, 0, 0).
 local run to 0.
 local complete to false.
 local canexecute to false.
+local desired_v to 30.
+local k is list(0.09, 0.01, 0).
+local piddv0 to sctpdv_init(k, -1).
+local piddv1 to piddv0.
+local timeApproach to 0.
 
-set steeringmanager:maxstoppingtime to 7.
+set steeringmanager:maxstoppingtime to 8.
 set steeringmanager:pitchts to 10.
 set steeringmanager:yawts to 10.
-set steeringmanager:pitchpid:kp to 0.3.
-set steeringmanager:pitchpid:ki to 0.0.
-set steeringmanager:pitchpid:kd to 0.1.
-set steeringmanager:yawpid:kp to 0.3.
-set steeringmanager:yawpid:ki to 0.0.
-set steeringmanager:yawpid:kd to 0.1.
-set steeringmanager:rollpid:kp to 0.3.
+set steeringmanager:pitchpid:kp to 0.6.
+set steeringmanager:pitchpid:ki to 0.01.
+set steeringmanager:pitchpid:kd to 0.07.
+set steeringmanager:yawpid:kp to 0.6.
+set steeringmanager:yawpid:ki to 0.01.
+set steeringmanager:yawpid:kd to 0.07.
+set steeringmanager:rollpid:kp to 0.5.
 set steeringmanager:rollpid:ki to 0.0.
 set steeringmanager:rollpid:kd to 0.1.
 
@@ -64,10 +73,6 @@ until runmode = -1
 	{
 		print_systems(input, output, timelaunch, runmode, abortmode, abortisactive, current_action, p_seek, y_seek, r_seek).
 	}
-	else if displaymode = 2
-	{
-		print_launch(input, output, timelaunch, runmode, abortmode, abortisactive, current_action, p_seek, y_seek, r_seek).
-	}
 	else if displaymode = 3
 	{
 		print_orbit(input, output, timelaunch, runmode, current_action).
@@ -75,6 +80,10 @@ until runmode = -1
 	else if displaymode = 4
 	{
 		print_docking(input, output, timelaunch, runmode, current_action).
+	}
+	else if displaymode = 5
+	{
+		print_landing(input, output, timelaunch, runmode, current_action).
 	}
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////AG COMMANDS//////////////////////////////////////////////////////////////
@@ -212,79 +221,16 @@ until runmode = -1
 	on ag11
 	{
 		clearscreen.
-		if input = "100"
-		{
-			set input to "".
-			set timelaunch to time:seconds + 240.
-			set runmode to -1.
-			set program to 100.
-			set output to "Running Pre Launch Program".
-		}
-		else if input = "101"
+		if input = "107"
 		{
 			set input to "".
 			set runmode to -1.
-			set current_action to "Launch Sequence".
-			set p_seek to 90.
-			set y_seek to 0.
-			set r_seek to 0.
-			set program to 101.
-			set output to "Running Launch Program".
-		}
-		else if input = "102"
-		{
-			set input to "".
-			set runmode to -1.
-			set current_action to "Drifting to Space".
-			set p_seek to ship:velocity:orbit:x.
-			set y_seek to 90.
-			set r_seek to 0.
-			set program to 102.
-			set output to "Running Kerbin Circularization".
-		}
-		else if input = "103"
-		{
-			set input to "".
-			set runmode to -1.
-			set current_action to "Computing Trans-Munar Node".
+			set current_action to "Waiting for Correct Position".
 			set p_seek to 999.
 			set y_seek to 999.
 			set r_seek to 999.
-			set program to 103.
-			set output to "Running Trans-Munar Burn".
-		}
-		else if input = "104"
-		{
-			set input to "".
-			set runmode to -1.
-			set current_action to "Positioning Ship for Sep".
-			set p_seek to 999.
-			set y_seek to 999.
-			set r_seek to 999.
-			set program to 104.
-			set output to "Running Docking Program".
-		}
-		else if input = "105"
-		{
-			set input to "".
-			set runmode to -1.
-			set current_action to "Calculating First Correction Burn".
-			set p_seek to 999.
-			set y_seek to 999.
-			set r_seek to 999.
-			set program to 105.
-			set output to "Running Munar Burns Program".
-		}
-		else if input = "106"
-		{
-			set input to "".
-			set runmode to -1.
-			set current_action to "Maneuvering to Retrograde".
-			set p_seek to 999.
-			set y_seek to 999.
-			set r_seek to 999.
-			set program to 106.
-			set output to "Running Pre Undocking Program".
+			set program to 107.
+			set output to "Running Deorbit Program".
 		}
 		else if input = "200"
 		{
@@ -297,12 +243,6 @@ until runmode = -1
 			set input to "".
 			set displaymode to 1.
 			set output to "Showing Systems".
-		}
-		else if input = "202"
-		{
-			set input to "".
-			set displaymode to 2.
-			set output to "Showing Launch".
 		}
 		else if input = "203"
 		{
@@ -322,20 +262,10 @@ until runmode = -1
 			set displaymode to 5.
 			set output to "Showing Landing".
 		}
-		else if input = "301"
+		else if input = "304"
 		{
-			set abortmode to 1.
-			set output to "Abort Mode Set to 1".
-		}
-		else if input = "302"
-		{
-			set abortmode to 2.
-			set output to "Abort Mode Set to 2".
-		}
-		else if input = "303"
-		{
-			set abortmode to 3.
-			set output to "Abort Mode Set to 3".
+			set abortmode to 4.
+			set output to "Abort Mode Set to 4".
 		}
 		else if input = "401"
 		{
@@ -495,119 +425,130 @@ until runmode = -1
 		set abortisactive to true.
 		set output to "ABORTING " + abortmode.
 	}
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////RUNNING CODE/////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	if runmode = 25
+	
+	if runmode = 1
 	{
-		set node1 to correct1().
-		set current_action to "Waiting for Correction Burn 1".
-		set input to "EXECUTE?".
-		set output to "".
-		set runmode to 26.
-		clearscreen.
+		if ship:geoposition:lng > 44 and holdNegative
+		{
+			set holdNegative to true.
+		}
+		else if ship:geoposition:lng > 44
+		{
+			set node1 to deorbitmm().
+			set current_action to "Waiting for Deorbit Burn".
+			set input to "EXECUTE?".
+			set output to "".
+			set runmode to 2.
+			clearscreen.
+		}
+		else
+		{
+			set holdNegative to false.
+		}
 	}
-	else if runmode = 26
+	else if runmode = 2
 	{
 		if node1:eta < 180
 		{
 			set p_seek to node1:deltav:x.
 			set y_seek to node1:deltav:y.
 			set r_seek to 0.
-			set runmode to 27.
+			set runmode to 3.
 			clearscreen.
 		}
 	}
-	else if runmode = 27
+	else if runmode = 3
 	{
-		set complete to execute_node_cmmm(node1, run, canexecute).
+		set complete to execute_node_mm(node1, run, canexecute).
 		set run to 1.
 		if complete = true
 		{
 			set output to "".
 			remove node1.
 			set canexecute to false.
-			set current_action to "Calculating Circularization Burn".
+			set current_action to "Deorbit Burn Complete".
 			set p_seek to 999.
 			set y_seek to 999.
 			set r_seek to 999.
 			set run to 0.
-			set runmode to 28.
-		}
-	}
-	else if runmode = 28
-	{
-		set node1 to circularize_noinc("pe").
-		set current_action to "Waiting for Circularization Burn".
-		set input to "EXECUTE?".
-		set output to "".
-		set runmode to 29.
-		clearscreen.
-	}
-	else if runmode = 29
-	{
-		if node1:eta < 180
-		{
-			set p_seek to node1:deltav:x.
-			set y_seek to node1:deltav:y..
-			set r_seek to 0.
-			set runmode to 30.
+			set runmode to 4.
 			clearscreen.
 		}
 	}
-	else if runmode = 30
+	else if runmode = 4
 	{
-		set complete to execute_node_cmmm(node1, run, canexecute).
-		set run to 1.
-		if complete = true
+		if ship:altitude < 20000
 		{
-			set output to "".
-			remove node1.
-			set canexecute to false.
-			set current_action to "Calculating Second Correction Burn".
-			set p_seek to 999.
-			set y_seek to 999.
-			set r_seek to 999.
-			set run to 0.
-			set runmode to 31.
-		}
-	}
-	else if runmode = 31
-	{
-		set node1 to circularize_noinc("nd").
-		set current_action to "Waiting for Correction Burn 2".
-		set input to "EXECUTE?".
-		set output to "".
-		set runmode to 32.
-		clearscreen.
-	}
-	else if runmode = 32
-	{
-		if node1:eta < 180
-		{
-			set p_seek to node1:deltav:x.
-			set y_seek to node1:deltav:y..
-			set r_seek to 0.
-			set runmode to 33.
+			sas off.
+			lock steering to ship:velocity:surface * -1.
+			set runmode to 5.
 			clearscreen.
 		}
 	}
-	else if runmode = 33
+	else if runmode = 5
 	{
-		set complete to execute_node_cmmm(node1, run, canexecute).
-		set run to 1.
-		if complete = true
+		if ship:geoposition:lng > 44
 		{
-			set output to "".
-			remove node1.
-			set current_action to "Correction Burn 2 Complete".
-			set p_seek to 999.
-			set y_seek to 999.
-			set r_seek to 999.
-			set runmode to 34.
+			lock throttle to 0.55.
+			set runmode to 6.
+			clearscreen.
 		}
 	}
-	else if runmode = 34
+	else if runmode = 6
+	{
+		if ship:groundspeed < 175
+		{
+			lock throttle to 0.70.
+		}
+		if ship:groundspeed < 100 and timeApproach = 0
+		{
+			set timeApproach to time:seconds.
+			lock steering to up + R(0, 35, 270).
+		}
+		if time:seconds >= timeApproach + 10 and timeApproach > 0
+		{
+			set runmode to 7.
+			clearscreen.
+		}
+	}
+	else if runmode = 7
+	{
+		set piddv1 to sctpdv_seek(desired_v, piddv0).
+		sctpdv_control(desired_v, piddv0).
+		set piddv0 to piddv1.
+		if alt:radar < 2500
+		{
+			set desired_v to 30.
+			unlock steering.
+			sas on.
+			set runmode to 8.
+			clearscreen.
+		}
+	}
+	else if runmode = 8
+	{
+		set piddv1 to sctpdv_seek(desired_v, piddv0).
+		sctpdv_control(desired_v, piddv0).
+		set piddv0 to piddv1.
+		if alt:radar < 1000
+		{
+			unlock throttle.
+			set runmode to 9.
+			clearscreen.
+		}
+	}
+	else if runmode = 9
+	{
+		
+	}
+	else if runmode = 10
+	{
+		sas off.
+		lock throttle to 0.
+		set runmode to 11.
+		clearscreen.
+	}
+	else if runmode = 11
 	{
 		
 	}
@@ -615,38 +556,8 @@ until runmode = -1
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////PROGRAM RUNS/////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-if program = 100
+if program = 107
 {
 	set runmode to 1.
-	runpath("kxicm1100", input, output, timelaunch, runmode, displaymode, abortmode, abortisactive, current_action, p_seek, y_seek, r_seek).
-}
-else if program = 101
-{
-	set runmode to 4.
-	runpath("kxicm1101", input, output, timelaunch, runmode, displaymode, abortmode, abortisactive, current_action, p_seek, y_seek, r_seek).
-}
-else if program = 102
-{
-	set runmode to 14.
-	runpath("kxicm1102", input, output, timelaunch, runmode, displaymode, abortmode, abortisactive, current_action, p_seek, y_seek, r_seek).
-}
-else if program = 103
-{
-	set runmode to 17.
-	runpath("kxicm1103", input, output, timelaunch, runmode, displaymode, abortmode, abortisactive, current_action, p_seek, y_seek, r_seek).
-}
-else if program = 104
-{
-	set runmode to 21.
-	runpath("kxicm1104", input, output, timelaunch, runmode, displaymode, abortmode, abortisactive, current_action, p_seek, y_seek, r_seek).
-}
-else if program = 105
-{
-	set runmode to 25.
-	runpath("kxicm1105", input, output, timelaunch, runmode, displaymode, abortmode, abortisactive, current_action, p_seek, y_seek, r_seek).
-}
-else if program = 106
-{
-	set runmode to 35.
-	runpath("kxicm1106", input, output, timelaunch, runmode, displaymode, abortmode, abortisactive, current_action, p_seek, y_seek, r_seek).
+	runpath("kximm1107", input, output, timelaunch, runmode, displaymode, abortmode, abortisactive, current_action, p_seek, y_seek, r_seek).
 }

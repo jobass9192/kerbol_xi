@@ -147,14 +147,17 @@ declare function print_systems
 		set i to i + 1.
 	}
 	local j to 0.
-	until j >= ship:partstagged("Command Capsule")[0]:resources:length
+	if ship:partstagged("Command Capsule")[0]:length > 0
 	{
-		if ship:partstagged("Command Capsule")[0]:resources[j]:name = "MonoPropellant"
+		until j >= ship:partstagged("Command Capsule")[0]:resources:length
 		{
-			set monocm to monocm + ship:partstagged("Command Capsule")[0]:resources[j]:amount.
-		}
-		set j to j + 1.
-	} 
+			if ship:partstagged("Command Capsule")[0]:resources[j]:name = "MonoPropellant"
+			{
+				set monocm to monocm + ship:partstagged("Command Capsule")[0]:resources[j]:amount.
+			}
+			set j to j + 1.
+		} 
+	}
 	print "CM Mono: " + round(monocm) at (0, 15).
 	set totalmono to monocm.
 	//Calculates Liquid Fuel in Second Stage
@@ -902,6 +905,151 @@ declare function print_docking
 	print input + output + "                              " at (0, 32).
 }
 
+declare function print_landing
+{
+	parameter input.
+	parameter output.
+	parameter timelaunch.
+	parameter runmode.
+	parameter current_action.
+	print "Clock: " at (0,0).
+	if time:seconds < timelaunch
+	{
+		print "T - " + get_clock(timelaunch - time:seconds) at (0,1).
+	}
+	else
+	{
+		print "T + " + get_clock(time:seconds - timelaunch) at (0,1).
+	}
+
+	print "Landing" at (20, 0).
+	
+	print "Runmode: " at (41, 0).
+	print runmode  at (41, 1).
+	
+	print "|" at (13, 0).
+	print "|" at (33, 0).
+	print "|" at (13, 1).
+	print "|" at (33, 1).
+	print "--------------------------------------------------" at (0, 2).
+	
+	print "Current Action: " + current_action at (0, 3).
+	
+	print "--------------------------------------------------" at (0, 4).
+	
+	if ship:verticalspeed <= 0
+	{
+		print "-----------" at (0, 6).
+		print "| " + 0 + "      "at (0, 7).
+		print "|" at (10, 7).
+		print "-----------" at (0, 8).
+		
+		print "-----------" at (0, 16).
+		print "| " + round(-1 * ship:verticalspeed, 2) at (0, 17).
+		print "|" at (10, 17).
+		print "-----------" at (0, 18).
+	}
+	else
+	{
+		print "-----------" at (0, 6).
+		print "| " + round(ship:verticalspeed, 2) at (0, 7).
+		print "|" at (10, 7).
+		print "-----------" at (0, 8).
+		
+		print "-----------" at (0, 16).
+		print "| " + 0 + "      " at (0, 17).
+		print "|" at (10, 17).
+		print "-----------" at (0, 18).
+	}
+	
+	print "|" at (5, 9).
+	print "|" at (5, 10).
+	print "|" at (5, 11).
+	print "|" at (5, 12).
+	print "|" at (5, 13).
+	print "|" at (5, 14).
+	print "|" at (5, 15).
+	
+	local vtopx to vcrs(ship:up:vector, ship:facing:starvector). //horizontal component of topvector
+	local vtx to vdot(vtopx, ship:velocity:surface) / (vtopx:mag)^2 * vtopx. //projection of surface velocity onto the horizontal component of the topvector
+	if vdot(vtopx, ship:velocity:surface) < 0
+	{
+		print "-----------" at (26, 9).
+		print "| " + round(vtx:mag, 2) at (26, 10).
+		print "|" at (36, 10).
+		print "-----------" at (26, 11).
+		
+		print "-----------" at (26, 13).
+		print "| " + 0 + "      " at (26, 14).
+		print "|" at (36, 14).
+		print "-----------" at (26, 15).
+	}
+	else
+	{
+		print "-----------" at (26, 9).
+		print "| " + 0 + "      " at (26, 10).
+		print "|" at (36, 10).
+		print "-----------" at (26, 11).
+		
+		print "-----------" at (26, 13).
+		print "| " + round(vtx:mag, 2) at (26, 14).
+		print "|" at (36, 14).
+		print "-----------" at (26, 15).
+	}
+	
+	local vstarx to -1 * vcrs(ship:up:vector, ship:facing:topvector). //horizontal component of starvector
+	local vsx to vdot(vstarx, ship:velocity:surface) / (vstarx:mag)^2 * vstarx. //projection of surface velocity onto the horizontal component of the starvector
+	if vdot(vstarx, ship:velocity:surface) < 0
+	{
+		print "-----------" at (13, 11).
+		print "| " + round(vsx:mag, 2) at (13, 12).
+		print "|" at (23, 12).
+		print "-----------" at (13, 13).
+	
+		print "-----------" at (39, 11).
+		print "| " + 0 + "      " at (39, 12).
+		print "|" at (49, 12).
+		print "-----------" at (39, 13).
+	}
+	else
+	{	
+		print "-----------" at (13, 11).
+		print "| " + 0 + "      " at (13, 12).
+		print "|" at (23, 12).
+		print "-----------" at (13, 13).
+	
+		print "-----------" at (39, 11).
+		print "| " + round(vsx:mag, 2) at (39, 12).
+		print "|" at (49, 12).
+		print "-----------" at (39, 13).
+	}
+	
+	print "Altitude: " + round(ship:altitude, 2) + "      " at (0, 20).
+	print "Radar: " + round(alt:radar, 2) + "      " at (25, 20).
+	print "Fuel: " + round(ship:liquidfuel - 189) + "      " at (0, 21).
+	local fuelFlow to 0.
+	local englist is list().
+	list engines in englist.
+	for eng in englist
+	{
+		if eng:ignition = true and eng:flameout = false
+		{
+			set fuelFlow to fuelFlow + eng:FUELFLOW.
+		}
+	}
+	if fuelFlow > 0
+	{
+		print "Time Remaining: " + round((ship:liquidfuel - 189) / fuelFlow) at (25, 21).
+	}
+	else
+	{
+		print "Time Remaining: inf" at (25, 21).
+	}
+	
+	print "--------------------------------------------------" at (0, 30).
+	print "CPU" at (0, 31).
+	print input + output + "                              " at (0, 32).
+}
 declare function get_clock
 {
 	parameter time_in_seconds.

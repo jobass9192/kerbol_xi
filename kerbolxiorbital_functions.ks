@@ -402,6 +402,22 @@ declare function circularize_noinc //helps to circularize and 0 inclination by c
 	return node_gen.
 }
 
+declare function deorbitmm
+{
+	local timenode to time:seconds + (ship:orbit:period / 2).
+	local node_deorbitmm to node(timenode, 0, 0, 0).
+	add node_deorbitmm.
+	local prograde to 0.
+	until node_deorbitmm:orbit:periapsis <= 12000
+	{
+		remove node_deorbitmm.
+		set node_deorbitmm to node(timenode, 0, 0, prograde).
+		add node_deorbitmm.
+		set prograde to prograde - 0.1.
+	}
+	return node_deorbitmm.
+}
+
 declare function execute_node_s2
 {
 	parameter node1.
@@ -442,6 +458,43 @@ declare function execute_node_s2
 }
 
 declare function execute_node_cmmm
+{
+	parameter node1.
+	parameter run.
+	parameter canexecute.
+	
+	if get_burn_time(node1) = 0
+	{
+		return true.
+	}
+	local time_start to time:seconds + node1:eta - (get_burn_time(node1) / 2).
+	
+	lock steering to node1:deltav.
+	if run = 0
+	{
+		sas off.
+		return false.
+	}
+	else if time:seconds >= time_start and node1:deltav:mag <= 0.2 and run = 1 //ends burn
+	{
+		lock throttle to 0.
+		sas on.
+		unlock steering.
+		return true.
+	}
+	else if time:seconds >= time_start and node1:deltav:mag <= (ship:maxthrust / ship:mass) * 0.5 and run = 1 and canexecute //slows down burn
+	{
+		lock throttle to 0.1.
+		return false.
+	}
+	else if time:seconds >= time_start and run = 1 and canexecute //begins burn
+	{
+		lock throttle to 1.
+		return false.
+	}
+}
+
+declare function execute_node_mm
 {
 	parameter node1.
 	parameter run.

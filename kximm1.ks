@@ -34,6 +34,19 @@ local p_seek to 999.
 local y_seek to 999.
 local r_seek to 999.
 
+set steeringmanager:maxstoppingtime to 6.
+set steeringmanager:pitchts to 10.
+set steeringmanager:yawts to 10.
+set steeringmanager:pitchpid:kp to 0.4.
+set steeringmanager:pitchpid:ki to 0.01.
+set steeringmanager:pitchpid:kd to 0.07.
+set steeringmanager:yawpid:kp to 0.4.
+set steeringmanager:yawpid:ki to 0.01.
+set steeringmanager:yawpid:kd to 0.07.
+set steeringmanager:rollpid:kp to 0.3.
+set steeringmanager:rollpid:ki to 0.0.
+set steeringmanager:rollpid:kd to 0.1.
+
 until runmode = -1
 {
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -195,7 +208,18 @@ until runmode = -1
 	on ag11
 	{
 		clearscreen.
-		if input = "200"
+		if input = "107"
+		{
+			set input to "".
+			set runmode to -1.
+			set current_action to "Waiting for Correct Position".
+			set p_seek to 999.
+			set y_seek to 999.
+			set r_seek to 999.
+			set program to 107.
+			set output to "Running Deorbit Program".
+		}
+		else if input = "200"
 		{
 			set input to "".
 			set displaymode to 0.

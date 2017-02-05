@@ -311,6 +311,12 @@ until runmode = -1
 			set displaymode to 4.
 			set output to "Showing Docking".
 		}
+		else if input = "205"
+		{
+			set input to "".
+			set displaymode to 5.
+			set output to "Showing Landing".
+		}
 		else if input = "301"
 		{
 			set abortmode to 1.
@@ -496,6 +502,10 @@ until runmode = -1
 		set current_action to "Crew Action".
 		unlock steering.
 		sas on.
+	}
+	else if runmode = 37
+	{
+		
 	}
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
